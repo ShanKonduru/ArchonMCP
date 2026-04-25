@@ -1,0 +1,103 @@
+name: Publish Python Package
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Where to publish the package"
+        required: true
+        type: choice
+        default: "testpypi"
+        options:
+          - testpypi
+          - pypi
+          - both
+
+jobs:
+  build:
+    name: Build Distributions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade build
+
+      - name: Build wheel and sdist
+        run: python -m build
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs: build
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' ||
+      github.event.inputs.target == 'testpypi' ||
+      github.event.inputs.target == 'both'
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/archon-mcp
+
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs:
+      - build
+      - publish-testpypi
+    runs-on: ubuntu-latest
+    if: |
+      secrets.PYPI_API_TOKEN != '' &&
+      (
+        github.event_name == 'push' ||
+        github.event.inputs.target == 'pypi' ||
+        github.event.inputs.target == 'both'
+      )
+    environment:
+      name: pypi
+      url: https://pypi.org/p/archon-mcp
+
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip-existing: true
