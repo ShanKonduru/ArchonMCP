@@ -78,12 +78,10 @@ jobs:
       - publish-testpypi
     runs-on: ubuntu-latest
     if: |
-      secrets.PYPI_API_TOKEN != '' &&
-      (
-        github.event_name == 'push' ||
-        github.event.inputs.target == 'pypi' ||
-        github.event.inputs.target == 'both'
-      )
+      github.event_name == 'push' ||
+      github.event.inputs.target == 'pypi' ||
+      github.event.inputs.target == 'both'
+    continue-on-error: true
     environment:
       name: pypi
       url: https://pypi.org/p/archon-mcp
