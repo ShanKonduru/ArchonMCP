@@ -40,10 +40,10 @@ dev = [
 ]
 
 [project.scripts]
-archon-mcp = "archon_mcp:cli"
+archon-mcp = "archon_mcp.cli:cli"
 
 [tool.hatch.build.targets.wheel]
-packages = ["."]
+packages = ["archon_mcp"]
 
 [tool.black]
 line-length = 100

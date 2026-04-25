@@ -9,3 +9,5 @@ venv/
 project-audit.json
 security.html
 security_project.html
+htmlcov/
+.coverage
