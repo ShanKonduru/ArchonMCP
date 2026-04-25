@@ -434,7 +434,62 @@ archon-mcp server
     git commit -m "chore: initialize governance framework"
 ```
 
-## 🛠️ Development Setup
+## � Publishing Releases
+
+### GitHub Actions Workflow (Automated)
+
+The repository includes an automated GitHub Actions workflow for building and publishing packages to TestPyPI and PyPI.
+
+#### Setup
+
+1. **Add Repository Secrets**:
+   - Go to repo Settings → Secrets and variables → Actions
+   - Add `TEST_PYPI_API_TOKEN`: Your TestPyPI API token
+   - (Optional) Add `PYPI_API_TOKEN`: Your PyPI API token for production releases
+
+2. **Trigger Publish Workflows**:
+
+   **Option A: Tag-based Release** (recommended)
+   ```bash
+   git tag v0.1.1
+   git push origin v0.1.1
+   # Workflow triggers automatically, publishes to TestPyPI + (optionally) PyPI
+   ```
+
+   **Option B: Manual Dispatch**
+   - Go to Actions → "Publish Python Package" → "Run workflow"
+   - Select target: `testpypi`, `pypi`, or `both`
+   - Click "Run workflow"
+
+#### Workflow Details
+
+- **Builds**: Creates wheel + sdist once, reused for all deployments
+- **TestPyPI**: Always publishes on tag push or manual run with `testpypi`/`both`
+- **PyPI**: Publishes only if `PYPI_API_TOKEN` secret exists
+- **Environments**: Uses GitHub Environments for security approval prompts
+
+---
+### Local Publishing (Manual)
+
+For local testing or publishing without GitHub Actions, use the provided deploy scripts:
+
+```bash
+# Windows
+.\deploy.bat
+# Select option: 3 (TestPyPI), 4 (PyPI), or 5 (Full cycle)
+
+# Unix/macOS
+./deploy.sh
+# Select option: 3 (TestPyPI), 4 (PyPI), or 5 (Full cycle)
+```
+
+**Requirements**:
+- `python -m build` installed
+- `twine` installed (auto-installed by deploy script)
+- Valid `.pypirc` or environment credentials for TestPyPI/PyPI
+
+---
+## �🛠️ Development Setup
 
 ### Prerequisites
 - Python 3.10+
