@@ -1,9 +1,7 @@
-name: Publish Python Package
+name: Publish TestPyPI (Manual)
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -59,30 +57,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
-          skip-existing: true
-
-  publish-pypi:
-    name: Publish to PyPI
-    needs:
-      - build
-      - publish-testpypi
-    runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    if: startsWith(github.ref, 'refs/tags/v')
-    continue-on-error: true
-    environment:
-      name: pypi
-      url: https://pypi.org/p/archon-mcp
-
-    steps:
-      - name: Download distribution artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: python-package-distributions
-          path: dist/
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
           skip-existing: true
