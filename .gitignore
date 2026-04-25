@@ -6,3 +6,6 @@ dist/
 .venv/
 venv/
 .env
+project-audit.json
+security.html
+security_project.html

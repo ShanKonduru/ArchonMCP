@@ -16,7 +16,7 @@ from typing import Optional
 import click
 import mcp.server.stdio
 from mcp.server import Server
-from mcp.types import Tool, TextContent, ToolResult
+from mcp.types import CallToolResult, Tool, TextContent
 
 
 # All supported stack profiles
@@ -1781,7 +1781,7 @@ server = Server("archon-mcp")
 async def init_governance(
     root_directory: Optional[str] = None,
     stack: Optional[str] = None,
-) -> ToolResult:
+) -> CallToolResult:
     """
     Initialize governance framework for a project.
     
@@ -1795,7 +1795,7 @@ async def init_governance(
         stack: Tech stack to use ('React-FastAPI-Postgres' or 'Generic', auto-detected if not specified)
         
     Returns:
-        ToolResult with creation status and details
+        CallToolResult with creation status and details
     """
     try:
         # Determine root directory
@@ -1806,14 +1806,14 @@ async def init_governance(
         
         # Validate root directory exists
         if not root_path.is_dir():
-            return ToolResult(
+            return CallToolResult(
                 content=[
                     TextContent(
                         type="text",
                         text=f"Error: Root directory does not exist: {root_path}",
                     )
                 ],
-                is_error=True,
+                isError=True,
             )
         
         # Detect or validate stack
@@ -1821,7 +1821,7 @@ async def init_governance(
             detected_stack = detect_tech_stack(root_path)
             stack = detected_stack
         elif stack not in VALID_STACKS:
-            return ToolResult(
+            return CallToolResult(
                 content=[
                     TextContent(
                         type="text",
@@ -1829,7 +1829,7 @@ async def init_governance(
                         f"Valid options: {', '.join(VALID_STACKS)}",
                     )
                 ],
-                is_error=True,
+                isError=True,
             )
         
         # Create governance structure
@@ -1838,14 +1838,14 @@ async def init_governance(
         # Format output
         if results["errors"]:
             error_text = "\n".join(results["errors"])
-            return ToolResult(
+            return CallToolResult(
                 content=[
                     TextContent(
                         type="text",
                         text=f"Governance initialization completed with errors:\n\n{error_text}",
                     )
                 ],
-                is_error=True,
+                isError=True,
             )
         
         # Success message
@@ -1868,15 +1868,15 @@ Next Steps:
 5. Reference these governance standards in code reviews
 """
         
-        return ToolResult(
+        return CallToolResult(
             content=[TextContent(type="text", text=output)],
-            is_error=False,
+            isError=False,
         )
         
     except Exception as e:
-        return ToolResult(
+        return CallToolResult(
             content=[TextContent(type="text", text=f"Error: {str(e)}")],
-            is_error=True,
+            isError=True,
         )
 
 
