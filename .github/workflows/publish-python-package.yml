@@ -52,10 +52,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    if: |
-      github.event_name == 'push' ||
-      github.event.inputs.target == 'testpypi' ||
-      github.event.inputs.target == 'both'
     environment:
       name: testpypi
       url: https://test.pypi.org/p/archon-mcp
@@ -83,10 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    if: |
-      github.event_name == 'push' ||
-      github.event.inputs.target == 'pypi' ||
-      github.event.inputs.target == 'both'
+    if: github.event_name == 'push'
     continue-on-error: true
     environment:
       name: pypi
