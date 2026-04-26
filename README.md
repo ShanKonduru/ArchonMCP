@@ -2,6 +2,10 @@
 
 **ArchonMCP** is a Python-based MCP (Model Context Protocol) server that deploys comprehensive governance frameworks for development projects. It provides tools to initialize and manage governance structures including rules, runbooks, and custom prompts designed to work seamlessly with AI-assisted development tools like Cursor, VS Code, and Claude.
 
+## Documentation
+
+- Detailed technical guide: [docs/TECHNICAL_GUIDE.md](docs/TECHNICAL_GUIDE.md)
+
 ## 🎯 Features
 
 - **Automatic Stack Detection**: Scans your project to identify whether you're using a React-FastAPI-Postgres architecture or a generic tech stack
