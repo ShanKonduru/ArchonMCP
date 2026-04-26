@@ -76,6 +76,19 @@ def test_react_node_mongodb_jsx(tmp_path):
     assert detect_tech_stack(tmp_path) == "React-Node-MongoDB"
 
 
+def test_detect_from_archon_stack_marker(tmp_path):
+    _touch(tmp_path / ".github" / "archon-stack.txt", "React-FastAPI-Postgres\n")
+    assert detect_tech_stack(tmp_path) == "React-FastAPI-Postgres"
+
+
+def test_detect_from_copilot_instructions_content(tmp_path):
+    _touch(
+        tmp_path / ".github" / "copilot-instructions.md",
+        "This is a Next.js-Django-Postgres stack project.",
+    )
+    assert detect_tech_stack(tmp_path) == "Next.js-Django-Postgres"
+
+
 # ── generic fallback ─────────────────────────────────────────────────────────
 
 def test_generic_empty_dir(tmp_path):

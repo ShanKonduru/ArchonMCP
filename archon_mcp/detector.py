@@ -5,12 +5,43 @@ from pathlib import Path
 from archon_mcp.constants import VALID_STACKS
 
 
+def _detect_stack_from_governance(root_path: Path) -> str | None:
+    """Detect stack from Archon governance metadata when present."""
+    stack_marker = root_path / ".github" / "archon-stack.txt"
+    if stack_marker.exists() and stack_marker.is_file():
+        try:
+            marker_value = stack_marker.read_text(encoding="utf-8").strip()
+        except (UnicodeDecodeError, OSError):
+            marker_value = ""
+        if marker_value in VALID_STACKS:
+            return marker_value
+
+    instructions_path = root_path / ".github" / "copilot-instructions.md"
+    if instructions_path.exists() and instructions_path.is_file():
+        try:
+            instructions_content = instructions_path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            instructions_content = ""
+        normalized_content = instructions_content.lower()
+        for stack in VALID_STACKS:
+            if stack == "Generic":
+                continue
+            if stack.lower() in normalized_content:
+                return stack
+
+    return None
+
+
 def detect_tech_stack(root_path: Path) -> str:
     """
     Detect the tech stack from files in the root directory.
 
     Returns one of the VALID_STACKS identifiers, falling back to 'Generic'.
     """
+    governance_stack = _detect_stack_from_governance(root_path)
+    if governance_stack is not None:
+        return governance_stack
+
     files_and_dirs: set[str] = set()
     suffixes: set[str] = set()
     try:

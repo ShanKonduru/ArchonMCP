@@ -123,6 +123,12 @@ Describe the consequences of this decision (positive and negative).
         bootstrap_path.write_text(bootstrap_content, encoding="utf-8")
         results["created_files"].append(str(bootstrap_path))
 
+        # Persist the selected stack so `archon-mcp detect` can recover it
+        # even when the project contains only governance files.
+        stack_marker_path = root_path / ".github" / "archon-stack.txt"
+        stack_marker_path.write_text(f"{stack}\n", encoding="utf-8")
+        results["created_files"].append(str(stack_marker_path))
+
     except Exception as e:
         results["errors"].append(f"Error creating governance structure: {str(e)}")
     

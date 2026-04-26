@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "archon-mcp"
-version = "0.1.4"
+version = "0.1.5"
 description = "ArchonMCP: A governance framework server for AI-assisted development"
 readme = "README.md"
 requires-python = ">=3.10"

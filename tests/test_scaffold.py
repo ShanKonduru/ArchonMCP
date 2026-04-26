@@ -12,6 +12,7 @@ from archon_mcp.scaffold import create_governance_structure
 
 EXPECTED_FILES = [
     Path(".github") / "copilot-instructions.md",
+    Path(".github") / "archon-stack.txt",
     Path(".github") / "skills" / "security.md",
     Path(".github") / "skills" / "migration.md",
     Path(".github") / "skills" / "done.md",
