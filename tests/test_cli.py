@@ -65,9 +65,13 @@ def test_init_case_insensitive_stack(runner, tmp_path):
 # ── --version flag ────────────────────────────────────────────────────────────
 
 def test_version_flag(runner):
+    """--version must report the real installed package version, not a
+    hard-coded string (E1.F1.S1)."""
+    from importlib.metadata import version as _pkg_version
+
     result = runner.invoke(cli, ["--version"])
     assert result.exit_code == 0
-    assert "0.1.0" in result.output
+    assert _pkg_version("archon-mcp") in result.output
 
 
 # ── --help flag ───────────────────────────────────────────────────────────────
