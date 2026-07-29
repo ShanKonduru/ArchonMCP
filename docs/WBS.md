@@ -14,6 +14,25 @@ The tool currently makes a *promise* ("stack-aware governance") that the archite
 
 ---
 
+## Delivery status
+
+Stories are tagged inline: **✅ DONE** (merged to `master`), **🟡 PARTIAL** (some tasks shipped), or untagged (not started).
+
+**Shipped in branch `security/p0-hardening` → merged to `master` (commit `434a453`):**
+- **E1.F1.S1** — `archon-mcp --version` now reads the real version from package metadata (was hard-coded `0.1.0`).
+- **E9.F1.S1** — no silent overwrite: existing files preserved and reported as `skipped`; `--force` / `dry_run` to overwrite.
+- **E9.F1.S2** — path containment via `archon_mcp/pathsafe.py`; `../`, absolute paths, and symlink escapes rejected in `scaffold.py` and `server.py`.
+- **E9.F5.S1** — MCP tool surface hardened: containment applied to `root_directory`, `force`/`dry_run` in the tool schema; no code execution/network confirmed.
+- **E9.F6.S1** — `SECURITY.md` added (threat model, runtime guarantees, disclosure process).
+- **E10.F4.S2** — `archon-mcp init --dry-run` previews without writing.
+- **E10.F5.S1** — writes provably confined to the project root, with a test asserting nothing escapes.
+- **E10.F1 (partial)** — release workflow hardened: test + `pip-audit` gate before build, least-privilege job-scoped `id-token: write` (OIDC Trusted Publishing), provenance attestations, removed `continue-on-error` that masked PyPI publish failures. Full trusted-publishing setup was already in place in CI — see the SEC-1 correction note below.
+- New tests in `tests/test_security.py` cover containment, safe-write/`--force`, and dry-run.
+
+**Correction to SEC-1 (recorded during implementation):** the real publish path already used OIDC Trusted Publishing (`.github/workflows/publish-python-package.yml`), so the "stealable long-lived token" risk was largely mitigated already. The token-based `deploy.sh` is a stale secondary script, not the actual pipeline. Severity of SEC-1 as originally written was overstated; the remaining work is retiring/fixing `deploy.sh` (SEC-8) and dependency lockdown (E10.F2).
+
+---
+
 ## Epic map (at a glance)
 
 | # | Epic | Outcome | Priority |
@@ -42,16 +61,16 @@ A full read of `cli.py`, `server.py`, `detector.py`, `scaffold.py`, all of `temp
 
 **Findings that create real phishing/malware/ransomware exposure for downstream users:**
 
-| ID | Severity | Finding | Evidence | Fixed by |
-|----|----------|---------|----------|----------|
-| SEC-1 | **Critical** | Releases published via manual `twine upload` with a long-lived PyPI token on a dev machine. Token leak / account phish → malicious release → mass malware/ransomware to all installers. | `deploy.sh:163,216`, `deploy.bat:132,178` | E10.F1, E9.F2.S2 |
-| SEC-2 | **High** | Unpinned, un-hashed dependencies (`fastmcp>=0.1.0`, `click>=8.0`) and unpinned build tools (`pip install --upgrade build twine`). A compromised upstream release ships through ArchonMCP's name. | `pyproject.toml`, `deploy.sh:36`, `deploy.bat:30` | E10.F2 |
-| SEC-3 | **High** | Typosquat / impersonation of the package and repo name is trivial and undefended. | package name `archon-mcp` | E10.F3 |
-| SEC-4 | **High** | `init` silently overwrites existing files (e.g. a real hand-written `.github/copilot-instructions.md`) with no backup or confirmation — data loss, and an amplifier if templates are ever poisoned. | `scaffold.py:50,65,80,123,129` | E9.F1.S1 |
-| SEC-5 | **High** | No path containment on the MCP `root_directory`; a bare `.resolve()` lets a client/agent be steered to write outside the intended project. | `server.py:41` | E9.F1.S2 |
-| SEC-6 | **Medium** | No automated guarantee that future template edits/tampering can't introduce fetch-and-execute commands or lookalike URLs into the files AI agents obey. | `templates.py` (clean now, unguarded) | E10.F4 |
-| SEC-7 | **Medium** | No `SECURITY.md`, no disclosure path, no artifact/secret scanning in CI. | repo root | E10.F5, E9.F6 |
-| SEC-8 | Low (functional) | `deploy.sh` calls its build/upload functions in the `case` block *before* they are defined (lines 54 vs 80+), so the script errors — the real publish path is unclear and likely ad hoc, which itself is a supply-chain risk. | `deploy.sh:54–77` | E10.F1 |
+| ID | Severity | Status | Finding | Evidence | Fixed by |
+|----|----------|--------|---------|----------|----------|
+| SEC-1 | **Critical** *(overstated — see note)* | 🟡 Mostly mitigated | Originally: releases via manual `twine upload` with a long-lived token. In reality the CI pipeline already used OIDC Trusted Publishing; the token flow lived only in the stale `deploy.sh`. Hardened the OIDC workflow (gate + least-privilege + no `continue-on-error`). Remaining: retire `deploy.sh`. | `deploy.sh:163,216`, `deploy.bat:132,178` | E10.F1 (partial) |
+| SEC-2 | **High** | ⬜ Open | Unpinned, un-hashed dependencies (`fastmcp>=0.1.0`, `click>=8.0`) and unpinned build tools (`pip install --upgrade build twine`). A compromised upstream release ships through ArchonMCP's name. | `pyproject.toml`, `deploy.sh:36`, `deploy.bat:30` | E10.F2 |
+| SEC-3 | **High** | ⬜ Open | Typosquat / impersonation of the package and repo name is trivial and undefended. | package name `archon-mcp` | E10.F3 |
+| SEC-4 | **High** | ✅ Fixed | `init` silently overwrites existing files with no backup or confirmation. Now preserved-by-default + `--force`/`--dry-run`. | `scaffold.py` | E9.F1.S1 |
+| SEC-5 | **High** | ✅ Fixed | No path containment on the MCP `root_directory`. Now confined via `pathsafe.resolve_within`. | `server.py:41` | E9.F1.S2 |
+| SEC-6 | **Medium** | ⬜ Open | No automated guarantee that future template edits/tampering can't introduce fetch-and-execute commands or lookalike URLs into the files AI agents obey. | `templates.py` (clean now, unguarded) | E10.F4.S1 |
+| SEC-7 | **Medium** | 🟡 Partial | No `SECURITY.md`/disclosure path (✅ added) and no artifact/secret scanning in CI (⬜ pending — E10.F6). | repo root | E9.F6, E10.F6 |
+| SEC-8 | Low (functional) | ⬜ Open | `deploy.sh` calls its build/upload functions before they are defined, so the script errors — the real publish path is unclear and likely ad hoc. | `deploy.sh:54–77` | E10.F1 |
 
 ---
 
@@ -60,7 +79,7 @@ A full read of `cli.py`, `server.py`, `detector.py`, `scaffold.py`, all of `temp
 Cheapest, highest-credibility work. For a *governance* tool, doc drift is self-discrediting.
 
 ### E1.F1 — Single source of truth for version
-- **E1.F1.S1** — *As a user, `archon-mcp --version` reports the real package version.* **(S, P0)**
+- **E1.F1.S1** — ✅ DONE — *As a user, `archon-mcp --version` reports the real package version.* **(S, P0)**
   - AC: version read from installed package metadata (`importlib.metadata.version("archon-mcp")`), not a hard-coded string.
   - Tasks:
     - Remove hard-coded `version="0.1.0"` in `cli.py`.
@@ -243,14 +262,14 @@ Deployment + Enforcement + **Measurement**.
 > Treat E9 as cross-cutting: E9.F1/F2/F5 are **P0 and precede/accompany the enforcement and AI-native epics**, not "later."
 
 ### E9.F1 — Safe file writes (integrity of the target repo)
-- **E9.F1.S1** — *As a user, `init` never silently destroys my existing governance files.* **(M, P0)**
+- **E9.F1.S1** — ✅ DONE — *As a user, `init` never silently destroys my existing governance files.* **(M, P0)**
   - AC: writing over an existing file requires `--force`; default is skip-with-warning or write `*.archon-new` alongside; a summary lists created/skipped/would-overwrite.
   - Tasks:
     - Replace unconditional `write_text` in `scaffold.py` with a guarded writer (exists → skip/backup/force).
     - Add `--force` / `--merge` flags to CLI `init` and the MCP tool.
     - Optional `.bak` backup before overwrite.
     - Tests: pre-existing file preserved by default; `--force` overwrites; report accuracy.
-- **E9.F1.S2** — *As a user, ArchonMCP cannot write outside the intended project root.* **(M, P0)**
+- **E9.F1.S2** — ✅ DONE — *As a user, ArchonMCP cannot write outside the intended project root.* **(M, P0)**
   - AC: all write targets are validated to resolve **inside** `root_path`; path traversal (`../`, absolute, symlink escape) is rejected before any write.
   - Tasks:
     - Add `is_within(root, target)` containment check using resolved paths; reject symlinked escapes.
@@ -291,7 +310,7 @@ Deployment + Enforcement + **Measurement**.
     - Tests: injected markers in repo files do not appear in generated `copilot-instructions.md`.
 
 ### E9.F5 — MCP server hardening
-- **E9.F5.S1** — *As an operator, the MCP tool surface is safe by default.* **(M, P0)**
+- **E9.F5.S1** — ✅ DONE — *As an operator, the MCP tool surface is safe by default.* **(M, P0)**
   - AC: `root_directory` validated (exists, is dir, within an allowed base if configured); tool inputs schema-validated and length-bounded; errors returned as `isError` results (already the pattern) without leaking sensitive paths; no execution of repo-provided code.
   - Tasks:
     - Input validation + optional allowed-root confinement (env/config).
@@ -300,7 +319,7 @@ Deployment + Enforcement + **Measurement**.
     - Contract tests for malformed/hostile tool inputs.
 
 ### E9.F6 — Security posture documentation & disclosure
-- **E9.F6.S1** — *As an adopter, I can see the threat model and report vulnerabilities.* **(S, P0)**
+- **E9.F6.S1** — ✅ DONE — *As an adopter, I can see the threat model and report vulnerabilities.* **(S, P0)**
   - AC: `SECURITY.md` with threat model (the two injection directions), supported versions, disclosure contact; README security section; verification-of-authenticity instructions.
 
 ---
@@ -311,15 +330,17 @@ Deployment + Enforcement + **Measurement**.
 >
 > Precedence: **E10.F1, E10.F2, E10.F4, E10.F5 are P0 and should ship in the very next release** — they are cheap relative to the blast radius. Note the current review found **no** runtime code execution or network calls in the package (good); these stories keep it that way and close the distribution gaps.
 
-### E10.F1 — Secure release pipeline (kills the malware/ransomware delivery path — SEC-1, SEC-8)
-- **E10.F1.S1** — *As a downstream user, a leaked maintainer token cannot be used to publish malware under ArchonMCP's name.* **(L, P0)**
+### E10.F1 — Secure release pipeline (kills the malware/ransomware delivery path — SEC-1, SEC-8)  🟡 PARTIAL
+- **E10.F1.S1** — 🟡 PARTIAL — *As a downstream user, a leaked maintainer token cannot be used to publish malware under ArchonMCP's name.* **(L, P0)**
+  - Done: OIDC Trusted Publishing already in CI; workflow hardened with a test+`pip-audit` gate, least-privilege job-scoped `id-token: write`, and removal of `continue-on-error` on the PyPI publish. Remaining: retire/fix the token-based `deploy.sh` (SEC-8), enforce 2FA + branch/tag protection in repo settings.
   - AC: all PyPI publishing runs through **GitHub Actions Trusted Publishing (OIDC)** — no long-lived API token exists to steal; manual `twine upload` from a workstation is removed/disabled.
   - Tasks:
     - Add a `release.yml` workflow gated on signed tags; publish via OIDC trusted publishing.
     - Remove/neutralize the token-based `upload_pypi`/`full_cycle` paths in `deploy.sh`/`deploy.bat` (and fix the function-ordering bug SEC-8 so no broken publish path lingers).
     - Require 2FA on the PyPI + GitHub accounts; document it in `SECURITY.md`.
     - Protect the release branch/tags; restrict who can trigger release.
-- **E10.F1.S2** — *As a downstream user, I can verify a release is authentic.* **(M, P0)**
+- **E10.F1.S2** — 🟡 PARTIAL — *As a downstream user, I can verify a release is authentic.* **(M, P0)**
+  - Done: `attestations: true` enabled on publish; `SECURITY.md` documents verification. Remaining: publish checksums and a step-by-step verify recipe.
   - AC: artifacts carry PEP 740 / Sigstore attestations; `SECURITY.md` documents how to verify before install; checksums published.
   - Tasks: enable attestations in the release workflow; publish verification instructions.
 
@@ -345,12 +366,12 @@ Deployment + Enforcement + **Measurement**.
     - CI test over `GOVERNANCE_TEMPLATES` (guards SEC-6 permanently — templates are clean today, this keeps them clean).
     - Runtime guard in the writer path; surface a clear error.
     - Tests with poisoned-template fixtures.
-- **E10.F4.S2** — *As a user, I can preview exactly what will be written before it touches my repo.* **(S, P0)**
+- **E10.F4.S2** — ✅ DONE — *As a user, I can preview exactly what will be written before it touches my repo.* **(S, P0)**
   - AC: `archon-mcp init --dry-run` prints the full file list + content diff and writes nothing; default `init` shows a summary and (per E9.F1.S1) never overwrites without `--force`.
   - Tasks: add `--dry-run`; render diffs for existing files; wire into MCP tool result.
 
 ### E10.F5 — Least-privilege & safe-by-default runtime (SEC-4, SEC-5 reinforcement)
-- **E10.F5.S1** — *As a user, running ArchonMCP can only ever touch the project I pointed it at.* **(M, P0)**
+- **E10.F5.S1** — ✅ DONE — *As a user, running ArchonMCP can only ever touch the project I pointed it at.* **(M, P0)**
   - AC: all writes confined to the resolved project root (shares the containment check from E9.F1.S2); no writes to `$HOME`, system dirs, or outside root; symlink escapes rejected; no hidden network or telemetry.
   - Tasks:
     - Enforce root-containment in `scaffold.py` and `server.py` (reuse E9.F1.S2).
@@ -366,7 +387,7 @@ Deployment + Enforcement + **Measurement**.
 
 ## Suggested delivery sequence (release themes)
 
-- **v0.2 — "Tell the truth & do no harm"**: E1 (all), E8.F3, **E9.F1 (safe writes + path containment), E9.F5, E9.F6**, and the P0 downstream-protection work: **E10.F1 (secure release pipeline / OIDC), E10.F2 (dependency lockdown), E10.F4 (generated-content scanner + `--dry-run`), E10.F5 (least-privilege runtime)**. Cheap relative to blast radius; closes the malware/ransomware/phishing delivery paths before more people install it.
+- **v0.2 — "Tell the truth & do no harm"** — *largely shipped (merged to `master`, commit `434a453`)*: ✅ E1.F1.S1, ✅ E9.F1 (safe writes + path containment), ✅ E9.F5, ✅ E9.F6, ✅ E10.F4.S2 (`--dry-run`), ✅ E10.F5, 🟡 E10.F1 (OIDC workflow hardened). **Still open for v0.2:** E1.F2 (docs list all six stacks), E8.F3 (doc-drift guard), E10.F2 (dependency lockdown), E10.F4.S1 (generated-content scanner), SEC-8 (retire `deploy.sh`).
 - **v0.3 — "Enforce"**: E2.F1 (`verify`), E2.F2 (drift), E8.F1, **E9.F2 (template integrity + signed releases)**. The scaffolder becomes a checker; the supply chain becomes trustworthy.
 - **v0.4 — "Audit & Score"**: E2.F3 (`audit`), E2.F4 (MCP), E5.F1/F2 (score + report), **E9.F3 (untrusted-input handling for audit)**.
 - **v0.5 — "Depth"**: E3 (per-stack content + externalized templates).
