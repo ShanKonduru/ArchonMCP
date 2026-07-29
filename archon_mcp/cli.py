@@ -2,6 +2,7 @@
 
 import asyncio
 import sys
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
 from pathlib import Path
 from typing import Optional
 
@@ -11,6 +12,14 @@ from archon_mcp.constants import VALID_STACKS
 from archon_mcp.detector import detect_tech_stack
 from archon_mcp.scaffold import create_governance_structure
 from archon_mcp.server import run_mcp_server
+
+
+def _archon_version() -> str:
+    """Return the installed package version, falling back gracefully."""
+    try:
+        return _pkg_version("archon-mcp")
+    except PackageNotFoundError:  # pragma: no cover - only when not installed
+        return "0.0.0+unknown"
 
 
 def print_success(message: str):
@@ -34,7 +43,7 @@ def print_warning(message: str):
 
 
 @click.group()
-@click.version_option(version="0.1.0", prog_name="ArchonMCP")
+@click.version_option(version=_archon_version(), prog_name="ArchonMCP")
 def cli():
     """ArchonMCP: Governance framework for AI-assisted development."""
     pass
@@ -64,7 +73,18 @@ def cli():
     is_flag=True,
     help="Verbose output with detailed file listings",
 )
-def init(root: Path, stack: Optional[str], verbose: bool):
+@click.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    help="Overwrite existing governance files (default: existing files are preserved)",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Show what would be created/overwritten without writing anything",
+)
+def init(root: Path, stack: Optional[str], verbose: bool, force: bool, dry_run: bool):
     """Initialize governance framework for a project."""
     try:
         click.secho("\n" + "=" * 50, fg="cyan")
@@ -91,34 +111,50 @@ def init(root: Path, stack: Optional[str], verbose: bool):
             print_info(f"Using specified stack: {stack}")
         
         # Create governance structure
-        print_info("Creating governance structure...")
-        results = create_governance_structure(root, stack)
-        
+        if dry_run:
+            print_info("Dry run: computing what would be created (no files written)...")
+        else:
+            print_info("Creating governance structure...")
+        results = create_governance_structure(root, stack, force=force, dry_run=dry_run)
+
         # Handle errors
         if results["errors"]:
             print_warning("Governance initialized with errors:")
             for error in results["errors"]:
                 print_error(f"  {error}")
-        
+
         # Print results
-        print_success("Governance framework initialized successfully!")
-        
+        if dry_run:
+            print_success("Dry run complete — no files were written.")
+        else:
+            print_success("Governance framework initialized successfully!")
+
         click.echo("\n" + "-" * 50)
         click.echo(f"Stack:        {results['stack']}")
         click.echo(f"Project Root: {root}")
         click.echo("-" * 50)
-        
+
+        verb = "Would create" if dry_run else "Created"
+
+        if results["skipped"]:
+            print_warning(
+                f"{len(results['skipped'])} existing file(s) preserved "
+                f"(use --force to overwrite):"
+            )
+            for s in results["skipped"]:
+                click.echo(f"  ⏭  {s}")
+
         if verbose:
-            click.echo("\nCreated Directories:")
+            click.echo(f"\n{verb} Directories:")
             for d in results["created_dirs"]:
                 click.echo(f"  📁 {d}")
-            
-            click.echo("\nCreated Files:")
+
+            click.echo(f"\n{verb} Files:")
             for f in results["created_files"]:
                 click.echo(f"  📄 {f}")
         else:
-            click.echo(f"\nCreated {len(results['created_dirs'])} directories")
-            click.echo(f"Created {len(results['created_files'])} files")
+            click.echo(f"\n{verb} {len(results['created_dirs'])} directories")
+            click.echo(f"{verb} {len(results['created_files'])} files")
         
         click.echo("\nNext Steps:")
         click.echo("  1. Review the governance files in .github/")

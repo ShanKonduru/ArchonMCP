@@ -19,19 +19,27 @@ server = Server("archon-mcp")
 async def init_governance(
     root_directory: Optional[str] = None,
     stack: Optional[str] = None,
+    force: bool = False,
+    dry_run: bool = False,
 ) -> CallToolResult:
     """
     Initialize governance framework for a project.
-    
+
     This tool:
-    1. Detects or validates the tech stack
+    1. Detects or validates the tech stack (see archon_mcp.constants.VALID_STACKS)
     2. Creates governance directory structure
     3. Deploys governance templates
-    
+
+    Existing files are preserved by default; pass ``force=True`` to overwrite,
+    or ``dry_run=True`` to preview without writing. All writes are confined to
+    ``root_directory`` — the tool never writes outside it.
+
     Args:
         root_directory: Project root directory (defaults to current directory)
-        stack: Tech stack to use ('React-FastAPI-Postgres' or 'Generic', auto-detected if not specified)
-        
+        stack: Tech stack to use (one of VALID_STACKS; auto-detected if omitted)
+        force: Overwrite existing governance files instead of preserving them
+        dry_run: Compute the plan without writing any files
+
     Returns:
         CallToolResult with creation status and details
     """
@@ -41,7 +49,7 @@ async def init_governance(
             root_path = Path(root_directory).resolve()
         else:
             root_path = Path.cwd()
-        
+
         # Validate root directory exists
         if not root_path.is_dir():
             return CallToolResult(
@@ -71,8 +79,10 @@ async def init_governance(
             )
         
         # Create governance structure
-        results = create_governance_structure(root_path, stack)
-        
+        results = create_governance_structure(
+            root_path, stack, force=force, dry_run=dry_run
+        )
+
         # Format output
         if results["errors"]:
             error_text = "\n".join(results["errors"])
@@ -87,15 +97,28 @@ async def init_governance(
             )
         
         # Success message
-        output = f"""✓ Governance framework initialized successfully!
+        header = (
+            "◑ Dry run — no files were written."
+            if results.get("dry_run")
+            else "✓ Governance framework initialized successfully!"
+        )
+        verb = "Would create" if results.get("dry_run") else "Created"
+        skipped_block = ""
+        if results.get("skipped"):
+            skipped_block = (
+                "\nExisting files preserved (use force=true to overwrite):\n"
+                + chr(10).join(f"  • {s}" for s in results["skipped"])
+                + "\n"
+            )
+        output = f"""{header}
 
 Stack Detected: {results['stack']}
 Project Root: {root_path}
-
-Created Directories:
+{skipped_block}
+{verb} Directories:
 {chr(10).join(f"  • {d}" for d in results['created_dirs'])}
 
-Created Files:
+{verb} Files:
 {chr(10).join(f"  • {f}" for f in results['created_files'])}
 
 Next Steps:
@@ -138,6 +161,20 @@ async def list_tools() -> list[Tool]:
                         "description": (
                             "Technology stack to use. Auto-detected if not specified. "
                             f"Options: {', '.join(VALID_STACKS)}"
+                        ),
+                    },
+                    "force": {
+                        "type": "boolean",
+                        "description": (
+                            "Overwrite existing governance files. Default false: "
+                            "existing files are preserved and reported, never "
+                            "silently destroyed."
+                        ),
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": (
+                            "Preview the plan without writing any files."
                         ),
                     },
                 },
